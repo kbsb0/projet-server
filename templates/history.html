@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Historique Complet</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      background: #2c3e50;
+      color: white;
+      padding: 20px;
+    }
+
+    /* En-tête */
+    .header-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2px solid #7f8c8d;
+      padding-bottom: 20px;
+      margin-bottom: 20px;
+    }
+
+    h1 { margin: 0; }
+
+    /* Bouton retour */
+    .back-btn {
+      text-decoration: none;
+      color: white;
+      background: #3498db;
+      padding: 10px 20px;
+      border-radius: 5px;
+      font-weight: bold;
+      transition: background 0.3s;
+    }
+    .back-btn:hover { background: #2980b9; }
+
+    /* Grille conteneur des cartes */
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 20px;
+    }
+
+    /* Carte individuelle (lien) */
+    .card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 10px;
+      padding: 15px;
+      text-decoration: none; /* Enlève le soulignement du lien */
+      color: white;          /* Garde le texte blanc */
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      transition: transform 0.2s, background 0.2s;
+      cursor: pointer;
+    }
+
+    /* Effet au survol */
+    .card:hover {
+      transform: translateY(-5px);
+      background: rgba(255, 255, 255, 0.1);
+      box-shadow: 0 8px 12px rgba(0,0,0,0.4);
+    }
+
+    .winner-name {
+      font-size: 1.2em;
+      font-weight: bold;
+      color: #2ecc71;
+      margin-bottom: 5px;
+      text-align: center;
+    }
+
+    .timestamp {
+      font-size: 0.85em;
+      color: #bdc3c7;
+      margin-bottom: 15px;
+    }
+
+    /* La grille miniature CSS */
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(15, 8px);
+      gap: 1px;
+      border: 2px solid #fff;
+      background: #000;
+    }
+    .mini-cell {
+      width: 8px;
+      height: 8px;
+      background: #fff;
+    }
+
+    .empty-msg {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: #95a5a6;
+      font-style: italic;
+      margin-top: 50px;
+    }
+
+    #loading { text-align: center; font-size: 1.2em; margin-top: 20px; }
+  </style>
+</head>
+<body>
+
+<div class="header-container">
+  <a href="/" class="back-btn">← Retour au Dashboard</a>
+  <h1>Galerie des Gagnants</h1>
+  <div style="width: 100px;"></div> <!-- Espace vide pour équilibrer le header -->
+</div>
+
+<div id="loading">Chargement de l'historique...</div>
+<div class="gallery" id="gallery"></div>
+
+<script>
+  const gallery = document.getElementById('gallery');
+  const loading = document.getElementById('loading');
+
+  // Fonction pour créer la grille visuelle (HTML pur)
+  function createMiniGrid(gridData) {
+    let container = document.createElement('div');
+    container.className = 'mini-grid';
+
+    for(let r=0; r<15; r++) {
+      for(let c=0; c<15; c++) {
+        let d = document.createElement('div');
+        d.className = 'mini-cell';
+        // Si la case existe et n'est pas vide/transparente, on met la couleur
+        let color = (gridData[r] && gridData[r][c]) ? gridData[r][c] : '#fff';
+        d.style.backgroundColor = color;
+        container.appendChild(d);
+      }
+    }
+    return container;
+  }
+
+  // Formatage de la date (ex: 12/05/2024 à 14:30)
+  function formatDate(isoString) {
+    const date = new Date(isoString);
+    return date.toLocaleDateString() + ' à ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+  }
+
+  // Chargement des données API
+  fetch('/api/history')
+          .then(res => res.json())
+          .then(data => {
+            loading.style.display = 'none';
+
+            if (!data || data.length === 0) {
+              gallery.innerHTML = '<div class="empty-msg">Aucun dessin validé pour le moment.</div>';
+              return;
+            }
+
+            // IMPORTANT : On parcourt le tableau à l'ENVERS (du dernier au premier)
+            // pour afficher les plus récents en haut, tout en gardant le bon Index 'i'.
+            for (let i = data.length - 1; i >= 0; i--) {
+              let entry = data[i];
+
+              // Création du lien (carte)
+              const card = document.createElement('a');
+              card.className = 'card';
+              // L'index 'i' correspond exactement à l'index dans le tableau Go (backend)
+              card.href = '/view/' + i;
+
+              // Nom
+              const nameDiv = document.createElement('div');
+              nameDiv.className = 'winner-name';
+              nameDiv.innerText = entry.name;
+              card.appendChild(nameDiv);
+
+              // Date
+              const timeDiv = document.createElement('div');
+              timeDiv.className = 'timestamp';
+              timeDiv.innerText = formatDate(entry.timestamp);
+              card.appendChild(timeDiv);
+
+              // Grille visuelle
+              const gridEl = createMiniGrid(entry.grid);
+              card.appendChild(gridEl);
+
+              gallery.appendChild(card);
+            }
+          })
+          .catch(err => {
+            loading.innerText = "Erreur lors du chargement de l'historique.";
+            loading.style.color = "#e74c3c";
+            console.error(err);
+          });
+</script>
+
+</body>
+</html>

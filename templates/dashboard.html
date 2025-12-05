@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard & Historique</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #2c3e50; color: white; display: flex; height: 100vh; overflow: hidden; }
+
+        /* Zone Principale */
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+        .grid { display: grid; grid-template-columns: repeat(15, 30px); gap: 1px; border: 5px solid white; background: #ccc; margin: 20px;}
+        .cell { width: 30px; height: 30px; background: white; }
+        .cell.target-1 { background: #7f8c8d; }
+
+        .timer { font-size: 4em; color: #e74c3c; font-weight: bold; margin: 0; }
+        #status { font-size: 1.5em; margin-bottom: 20px; height: 30px; }
+
+        /* Barre latérale Historique */
+        .sidebar { width: 300px; background: #34495e; padding: 20px; overflow-y: auto; box-shadow: -2px 0 5px rgba(0,0,0,0.3); display: flex; flex-direction: column; }
+        .sidebar h2 { margin-top: 0; font-size: 1.2em; border-bottom: 1px solid #7f8c8d; padding-bottom: 10px; }
+        .sidebar-link { margin-top: auto; padding-top: 10px; text-align: center; }
+        .sidebar-link a { color: #3498db; text-decoration: none; font-weight: bold; }
+
+        /* Style des entrées historique */
+        .hist-entry { background: rgba(255,255,255,0.1); padding: 10px; border-radius: 5px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+        .hist-info { font-size: 0.9em; }
+        .hist-name { font-weight: bold; color: #2ecc71; }
+
+        /* Mini Grille CSS */
+        .mini-grid { display: grid; grid-template-columns: repeat(15, 4px); gap: 0; border: 1px solid #fff; background: #000; }
+        .mini-cell { width: 4px; height: 4px; background: #fff; }
+    </style>
+</head>
+<body>
+
+<!-- Partie Centrale : Le Jeu en Cours -->
+<div class="main-content">
+    <h1>LIVE STATUS</h1>
+    <div class="timer" id="timer">--:--</div>
+    <div id="status">En attente...</div>
+
+    <div class="grid" id="grid"></div>
+    <div>Dessins validés (Total): <span id="count">0</span></div>
+</div>
+
+<!-- Sidebar : Historique Récent -->
+<div class="sidebar">
+    <h2>Derniers Gagnants</h2>
+    <div id="history-list">
+        <!-- Rempli par JS -->
+    </div>
+
+    <div class="sidebar-link">
+        <a href="/history" target="_blank">Voir tout l'historique >></a>
+    </div>
+</div>
+
+<script>
+    const GRID_SIZE = 15;
+    const gridDiv = document.getElementById('grid');
+    const historyListDiv = document.getElementById('history-list');
+
+    // Génération grille principale HTML
+    for(let i=0; i<GRID_SIZE*GRID_SIZE; i++) {
+        let cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.id = 'cell-' + Math.floor(i/GRID_SIZE) + '-' + (i%GRID_SIZE);
+        gridDiv.appendChild(cell);
+    }
+
+    function createMiniGrid(gridData) {
+        let container = document.createElement('div');
+        container.className = 'mini-grid';
+        for(let r=0; r<15; r++) {
+            for(let c=0; c<15; c++) {
+                let d = document.createElement('div');
+                d.className = 'mini-cell';
+                // Si vide, blanc. Sinon la couleur.
+                d.style.backgroundColor = gridData[r][c] || '#fff';
+                container.appendChild(d);
+            }
+        }
+        return container;
+    }
+
+    // Boucle de mise à jour
+    setInterval(() => {
+        fetch('/api/state').then(r=>r.json()).then(data => {
+            // 1. Timer & Info
+            let m = Math.floor(data.timeLeft / 60);
+            let s = Math.floor(data.timeLeft % 60);
+            document.getElementById('timer').innerText = (m<10?'0':'')+m + ":" + (s<10?'0':'')+s;
+            document.getElementById('count').innerText = data.submissionCount;
+
+            let st = document.getElementById('status');
+            if(data.isSolved) {
+                st.innerText = "GAGNÉ par " + (data.solvedBy || "Inconnu");
+                st.style.color = "#2ecc71";
+            } else {
+                st.innerText = "En cours...";
+                st.style.color = "#f1c40f";
+            }
+
+            // 2. Grille Principale
+            for(let r=0; r<GRID_SIZE; r++) {
+                for(let c=0; c<GRID_SIZE; c++) {
+                    const cell = document.getElementById(`cell-${r}-${c}`);
+                    if(data.isSolved && data.solvedGrid) {
+                        cell.style.backgroundColor = data.solvedGrid[r][c];
+                    } else {
+                        cell.style.backgroundColor = '';
+                        cell.className = data.targetGrid[r][c] === 1 ? 'cell target-1' : 'cell';
+                    }
+                }
+            }
+
+            // 3. Liste Historique (Sidebar)
+            // On vide et on remplit pour garder sync (optimisation possible mais pas nécessaire ici)
+            historyListDiv.innerHTML = "";
+            if(data.recentHistory) {
+                data.recentHistory.forEach(entry => {
+                    let entryDiv = document.createElement('div');
+                    entryDiv.className = 'hist-entry';
+
+                    // Mini grille
+                    entryDiv.appendChild(createMiniGrid(entry.grid));
+
+                    // Info texte
+                    let infoDiv = document.createElement('div');
+                    infoDiv.className = 'hist-info';
+                    infoDiv.innerHTML = `<div class="hist-name">${entry.name}</div>`;
+                    entryDiv.appendChild(infoDiv);
+
+                    historyListDiv.appendChild(entryDiv);
+                });
+            }
+        });
+    }, 1000);
+</script>
+</body>
+</html>

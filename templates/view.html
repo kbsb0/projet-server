@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Détail du Dessin</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            background: #2c3e50;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* En-tête */
+        header { width: 100%; padding: 20px; background: #34495e; display: flex; align-items: center; justify-content: space-between; box-sizing: border-box;}
+        h1 { margin: 0; font-size: 1.5em; }
+
+        a.btn {
+            text-decoration: none;
+            background: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        a.btn:hover { background: #2980b9; }
+
+        /* Conteneur central */
+        .content { margin-top: 40px; text-align: center; }
+
+        /* Infos du gagnant */
+        .winner-info { margin-bottom: 20px; }
+        .winner-name { font-size: 2em; color: #2ecc71; font-weight: bold; }
+        .winner-time { font-size: 1.1em; color: #bdc3c7; margin-top: 5px; }
+
+        /* LA GRANDE GRILLE */
+        .big-grid {
+            display: grid;
+            grid-template-columns: repeat(15, 40px); /* Cases de 40px */
+            gap: 2px;
+            background: #95a5a6;
+            border: 10px solid white;
+            padding: 2px;
+            margin: 0 auto;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
+
+        .cell {
+            width: 40px;
+            height: 40px;
+            background: white;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="/history" class="btn">← Retour Historique</a>
+    <h1>Détail de l'oeuvre</h1>
+    <a href="/" class="btn">Dashboard</a>
+</header>
+
+<div class="content">
+    <div id="loading">Chargement du dessin...</div>
+
+    <div id="display-area" style="display:none;">
+        <div class="winner-info">
+            <div class="winner-name" id="w-name"></div>
+            <div class="winner-time" id="w-time"></div>
+        </div>
+
+        <div class="big-grid" id="grid">
+            <!-- Rempli par JS -->
+        </div>
+    </div>
+</div>
+
+<script>
+    // Récupérer l'ID depuis l'URL (ex: /view/5 -> id = 5)
+    const pathParts = window.location.pathname.split('/');
+    const drawingId = pathParts[pathParts.length - 1];
+
+    const gridDiv = document.getElementById('grid');
+    const displayArea = document.getElementById('display-area');
+    const loading = document.getElementById('loading');
+
+    // 1. Générer la grille vide HTML (15x15)
+    for(let i=0; i<15*15; i++) {
+        let c = document.createElement('div');
+        c.className = 'cell';
+        // id sous forme r-c pour accès facile
+        let r = Math.floor(i/15);
+        let col = i%15;
+        c.id = `c-${r}-${col}`;
+        gridDiv.appendChild(c);
+    }
+
+    // 2. Récupérer les données
+    fetch('/api/history/' + drawingId)
+        .then(r => {
+            if(!r.ok) throw new Error("Introuvable");
+            return r.json();
+        })
+        .then(data => {
+            loading.style.display = 'none';
+            displayArea.style.display = 'block';
+
+            // Infos texte
+            document.getElementById('w-name').innerText = "Réalisé par : " + data.name;
+            const date = new Date(data.timestamp);
+            document.getElementById('w-time').innerText = date.toLocaleDateString() + " à " + date.toLocaleTimeString();
+
+            // Remplissage couleurs
+            for(let r=0; r<15; r++) {
+                for(let c=0; c<15; c++) {
+                    let color = data.grid[r][c];
+                    let cell = document.getElementById(`c-${r}-${c}`);
+                    if(cell) {
+                        cell.style.backgroundColor = color || '#ffffff';
+                    }
+                }
+            }
+        })
+        .catch(err => {
+            loading.innerText = "Erreur : Dessin introuvable ou ID incorrect.";
+            loading.style.color = "#e74c3c";
+        });
+</script>
+
+</body>
+</html>

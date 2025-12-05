@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Art Multi-Couleurs</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+
+        h1 { margin-bottom: 10px; }
+
+        /* Palette de couleurs */
+        .palette {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .color-choice {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: transform 0.2s;
+        }
+
+        .color-choice:hover { transform: scale(1.1); }
+
+        /* Indicateur de couleur active */
+        .color-choice.active {
+            border-color: #333;
+            transform: scale(1.2);
+        }
+
+        /* Grille */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(15, 30px); /* 15 colonnes */
+            grid-template-rows: repeat(15, 30px);
+            gap: 1px;
+            background-color: #ccc;
+            border: 5px solid #333;
+            user-select: none; /* Empêche la sélection de texte */
+        }
+
+        .cell {
+            background-color: #ffffff;
+            cursor: pointer;
+        }
+
+        /* Indice visuel (grisé) pour savoir où dessiner */
+        .cell.hint {
+            background-color: #d1d1d1;
+            /* On peut ajouter une petite texture ou bordure si voulu */
+        }
+
+        /* Contrôles */
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+        }
+
+        .btn-reset { background-color: #747d8c; }
+        .btn-validate { background-color: #2ed573; }
+        button:hover { opacity: 0.9; }
+
+        #message {
+            margin-top: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+            height: 30px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Space Invader Color</h1>
+<p>Sélectionnez une couleur. Cliquez pour colorier, recliquez pour effacer.</p>
+
+<!-- Palette de sélection (La gomme blanche a été supprimée) -->
+<div class="palette" id="palette">
+    <!-- Bleu, Rouge, Jaune, Vert, Orange, Rose, Marron, Violet, Gris -->
+    <div class="color-choice" style="background-color: #3498db;" data-color="#3498db" title="Bleu"></div>
+    <div class="color-choice" style="background-color: #e74c3c;" data-color="#e74c3c" title="Rouge"></div>
+    <div class="color-choice" style="background-color: #f1c40f;" data-color="#f1c40f" title="Jaune"></div>
+    <div class="color-choice" style="background-color: #2ecc71;" data-color="#2ecc71" title="Vert"></div>
+    <div class="color-choice" style="background-color: #e67e22;" data-color="#e67e22" title="Orange"></div>
+    <div class="color-choice" style="background-color: #fd79a8;" data-color="#fd79a8" title="Rose"></div>
+    <div class="color-choice" style="background-color: #8d6e63;" data-color="#8d6e63" title="Marron"></div>
+    <div class="color-choice" style="background-color: #9b59b6;" data-color="#9b59b6" title="Violet"></div>
+    <div class="color-choice" style="background-color: #95a5a6;" data-color="#95a5a6" title="Gris"></div>
+</div>
+
+<div class="grid-container" id="grid">
+    {{ range $rowIndex, $row := .Grid }}
+    {{ range $colIndex, $val := $row }}
+    <!--
+       Si val == 1, la classe 'hint' met la case en gris (#d1d1d1).
+    -->
+    <div class="cell {{ if eq $val 1 }}hint{{ end }}"
+         onclick="paintCell(this)"
+         data-row="{{ $rowIndex }}"
+         data-col="{{ $colIndex }}">
+    </div>
+    {{ end }}
+    {{ end }}
+</div>
+
+<div class="controls">
+    <button class="btn-reset" onclick="resetGrid()">Tout effacer</button>
+    <button class="btn-validate" onclick="validateOnServer()">Vérifier (Serveur)</button>
+</div>
+
+<div id="message"></div>
+
+<script>
+    let currentColor = '#3498db'; // Couleur par défaut (Bleu)
+
+    // Initialisation de la palette
+    const choices = document.querySelectorAll('.color-choice');
+    choices.forEach(choice => {
+        choice.addEventListener('click', () => {
+            // Gestion visuelle de la sélection
+            choices.forEach(c => c.classList.remove('active'));
+            choice.classList.add('active');
+
+            // Mise à jour de la couleur actuelle
+            currentColor = choice.getAttribute('data-color');
+        });
+    });
+    // Activer le premier par défaut
+    choices[0].classList.add('active');
+
+    // Fonction pour colorier OU effacer une case
+    function paintCell(cell) {
+        // On vérifie si la case a déjà une couleur définie dans le style inline
+        // (C'est le cas si l'utilisateur a déjà cliqué dessus)
+        if (cell.style.backgroundColor && cell.style.backgroundColor !== "") {
+            // CAS : La case est coloriée -> On l'efface
+            cell.style.backgroundColor = "";
+        } else {
+            // CAS : La case est vide (ou juste grise par le CSS) -> On la colorie
+            cell.style.backgroundColor = currentColor;
+        }
+
+        // Efface le message de validation pour ne pas embrouiller l'utilisateur
+        document.getElementById('message').innerText = "";
+    }
+
+    // Réinitialisation complète
+    function resetGrid() {
+        const cells = document.querySelectorAll('.cell');
+        cells.forEach(cell => {
+            // On vide le style, tout redevient comme au chargement (gris ou blanc selon CSS)
+            cell.style.backgroundColor = '';
+        });
+        document.getElementById('message').innerText = "";
+    }
+
+    // Validation COTE SERVEUR
+    async function validateOnServer() {
+        const cells = document.querySelectorAll('.cell');
+
+        // Création de la grille utilisateur
+        let userGrid = Array(15).fill().map(() => Array(15).fill(""));
+
+        cells.forEach(cell => {
+            const r = parseInt(cell.getAttribute('data-row'));
+            const c = parseInt(cell.getAttribute('data-col'));
+
+            // On récupère la couleur
+            let color = cell.style.backgroundColor;
+
+            // Si pas de couleur, on envoie chaine vide
+            if (!color) {
+                color = "";
+            }
+            userGrid[r][c] = color;
+        });
+
+        try {
+            const response = await fetch('/validate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ grid: userGrid })
+            });
+
+            const data = await response.json();
+            const msgDiv = document.getElementById('message');
+
+            msgDiv.innerText = data.message;
+            msgDiv.style.color = data.success ? "#2ed573" : "#ff4757";
+
+        } catch (error) {
+            console.error('Erreur:', error);
+            document.getElementById('message').innerText = "Erreur de connexion au serveur.";
+        }
+    }
+</script>
+
+</body>
+</html>
