@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stats Serveur</title>
+  <!-- Tailwind CSS pour le style rapide -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js pour le graphique -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Plugin date adapter si besoin, mais on va formatter manuellement -->
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-8">
+
+<div class="max-w-4xl mx-auto">
+  <header class="mb-8 flex justify-between items-center">
+    <h1 class="text-3xl font-bold text-blue-400">Monitoring Serveur</h1>
+    <a href="/" class="text-gray-400 hover:text-white">Retour au Dashboard</a>
+  </header>
+
+  <!-- KPI Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+    <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+      <h3 class="text-gray-400 text-sm uppercase">Moyenne (Req/Sec)</h3>
+      <p id="avgDisplay" class="text-4xl font-bold mt-2 text-green-400">0.0</p>
+    </div>
+    <div class="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
+      <h3 class="text-gray-400 text-sm uppercase">Pic Actuel (Req/Sec)</h3>
+      <p id="peakDisplay" class="text-4xl font-bold mt-2 text-yellow-400">0</p>
+    </div>
+  </div>
+
+  <!-- Chart Container -->
+  <div class="bg-gray-800 p-4 rounded-lg shadow-lg border border-gray-700">
+    <canvas id="trafficChart"></canvas>
+  </div>
+</div>
+
+<script>
+  const ctx = document.getElementById('trafficChart').getContext('2d');
+
+  // Initialisation du graphique
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Requêtes par seconde',
+        data: [],
+        borderColor: 'rgb(59, 130, 246)', // Bleu
+        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.3 // Courbe lissée
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        x: {
+          ticks: { color: '#9ca3af' },
+          grid: { color: '#374151' }
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { color: '#9ca3af' },
+          grid: { color: '#374151' }
+        }
+      },
+      plugins: {
+        legend: { labels: { color: 'white' } }
+      }
+    }
+  });
+
+  // Fonction de mise à jour
+  async function fetchStats() {
+    try {
+      const response = await fetch('/api/stats');
+      const data = await response.json();
+
+      // Formatage des dates (timestamps Unix -> HH:MM:SS)
+      const formattedLabels = data.timestamps.map(ts => {
+        const date = new Date(ts * 1000);
+        return date.toLocaleTimeString();
+      });
+
+      // Mise à jour du Chart
+      chart.data.labels = formattedLabels;
+      chart.data.datasets[0].data = data.counts;
+      chart.update();
+
+      // Mise à jour des KPI textuels
+      document.getElementById('avgDisplay').innerText = data.average.toFixed(2);
+
+      const max = data.counts.length > 0 ? Math.max(...data.counts) : 0;
+      document.getElementById('peakDisplay').innerText = max;
+
+    } catch (error) {
+      console.error("Erreur récupération stats:", error);
+    }
+  }
+
+  // Rafraichir toutes les 2 secondes
+  setInterval(fetchStats, 2000);
+  fetchStats();
+</script>
+</body>
+</html>
