@@ -1,73 +1,199 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-    <title>Dashboard & Historique</title>
+    <meta charset="UTF-8">
+    <title>Dashboard Complet - Pixel Game</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #2c3e50; color: white; display: flex; height: 100vh; overflow: hidden; }
+        /* --- CONFIGURATION GLOBALE --- */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #2c3e50;
+            color: white;
+            margin: 0;
+            height: 100vh;
+            display: flex; /* Active le layout flexible */
+            overflow: hidden;
+        }
 
-        /* Zone Principale */
-        .main-content { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        h1, h2 { text-align: center; margin-top: 0; }
+        a { color: #3498db; text-decoration: none; font-weight: bold; }
 
-        .grid { display: grid; grid-template-columns: repeat(15, 30px); gap: 1px; border: 5px solid white; background: #ccc; margin: 20px;}
-        .cell { width: 30px; height: 30px; background: white; }
-        .cell.target-1 { background: #7f8c8d; }
+        /* --- COLONNE GAUCHE : LEADERBOARD (20%) --- */
+        .left-panel {
+            flex: 1;
+            min-width: 250px;
+            background-color: #34495e;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            border-right: 3px solid #2c3e50;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
 
-        .timer { font-size: 4em; color: #e74c3c; font-weight: bold; margin: 0; }
-        #status { font-size: 1.5em; margin-bottom: 20px; height: 30px; }
+        /* --- COLONNE CENTRALE : JEU (60%) --- */
+        .center-panel {
+            flex: 3;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background-color: #2c3e50;
+        }
 
-        /* Barre latérale Historique */
-        .sidebar { width: 300px; background: #34495e; padding: 20px; overflow-y: auto; box-shadow: -2px 0 5px rgba(0,0,0,0.3); display: flex; flex-direction: column; }
-        .sidebar h2 { margin-top: 0; font-size: 1.2em; border-bottom: 1px solid #7f8c8d; padding-bottom: 10px; }
-        .sidebar-link { margin-top: auto; padding-top: 10px; text-align: center; }
-        .sidebar-link a { color: #3498db; text-decoration: none; font-weight: bold; }
+        /* --- COLONNE DROITE : HISTORIQUE (20%) --- */
+        .right-panel {
+            flex: 1;
+            min-width: 250px;
+            background-color: #34495e;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            border-left: 3px solid #2c3e50;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.3);
+            overflow-y: auto;
+            z-index: 10;
+        }
 
-        /* Style des entrées historique */
-        .hist-entry { background: rgba(255,255,255,0.1); padding: 10px; border-radius: 5px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
-        .hist-info { font-size: 0.9em; }
-        .hist-name { font-weight: bold; color: #2ecc71; }
+        /* --- STYLE CLASSEMENT (Gauche) --- */
+        .leaderboard-list {
+            list-style: none;
+            padding: 0;
+            overflow-y: auto;
+        }
 
-        /* Mini Grille CSS */
-        .mini-grid { display: grid; grid-template-columns: repeat(15, 4px); gap: 0; border: 1px solid #fff; background: #000; }
-        .mini-cell { width: 4px; height: 4px; background: #fff; }
+        .leaderboard-item {
+            background-color: #2c3e50;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.95em;
+        }
+
+        .leaderboard-item:first-child {
+            background-color: #f1c40f; color: #2c3e50; font-weight: bold; border: 2px solid #fff;
+        }
+        .leaderboard-item:nth-child(2) { border-left: 5px solid #bdc3c7; }
+        .leaderboard-item:nth-child(3) { border-left: 5px solid #e67e22; }
+
+        .score-badge {
+            background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 10px; font-size: 0.8em;
+        }
+
+        /* --- STYLE JEU (Centre) --- */
+        #timer {
+            font-size: 4em; font-weight: bold; color: #e74c3c; margin-bottom: 20px;
+            text-shadow: 2px 2px 0px #000;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(15, 30px);
+            grid-template-rows: repeat(15, 30px);
+            gap: 2px;
+            background-color: #555;
+            border: 5px solid #ecf0f1;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        .cell { width: 30px; height: 30px; background-color: white; }
+        .cell.filled { background-color: #2c3e50; } /* Case noire à dessiner */
+
+        #status-msg {
+            margin-top: 20px; font-size: 1.5em; height: 40px; font-weight: bold; text-align: center;
+        }
+
+        #info {
+            margin-top: 10px; color: #bdc3c7; font-size: 0.9em;
+        }
+
+        /* --- STYLE HISTORIQUE (Droite) --- */
+        .hist-entry {
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .hist-info { font-size: 0.9em; overflow: hidden; }
+        .hist-name { font-weight: bold; color: #2ecc71; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* Mini Grille pour l'historique */
+        .mini-grid {
+            display: grid;
+            grid-template-columns: repeat(15, 3px); /* Très petit */
+            gap: 0;
+            border: 1px solid #fff;
+            background: #000;
+        }
+        .mini-cell { width: 3px; height: 3px; background: #fff; }
+
+        .sidebar-link { margin-top: auto; padding-top: 10px; text-align: center; font-size: 0.9em;}
     </style>
 </head>
 <body>
 
-<!-- Partie Centrale : Le Jeu en Cours -->
-<div class="main-content">
-    <h1>LIVE STATUS</h1>
-    <div class="timer" id="timer">--:--</div>
-    <div id="status">En attente...</div>
-
-    <div class="grid" id="grid"></div>
-    <div>Dessins validés (Total): <span id="count">0</span></div>
+<!-- GAUCHE : CLASSEMENT -->
+<div class="left-panel">
+    <h2>🏆 TOP JOUEURS</h2>
+    <ul class="leaderboard-list" id="leaderboard">
+        <!-- Rempli par JS -->
+    </ul>
 </div>
 
-<!-- Sidebar : Historique Récent -->
-<div class="sidebar">
-    <h2>Derniers Gagnants</h2>
+<!-- CENTRE : LE JEU -->
+<div class="center-panel">
+    <h1>LIVE GAME</h1>
+    <div id="timer">--:--</div>
+
+    <div class="grid-container" id="grid">
+        <!-- Grille générée par JS -->
+    </div>
+
+    <div id="status-msg">En attente...</div>
+    <div id="info">Chargement des stats...</div>
+</div>
+
+<!-- DROITE : HISTORIQUE -->
+<div class="right-panel">
+    <h2>🕒 HISTORIQUE</h2>
     <div id="history-list">
         <!-- Rempli par JS -->
     </div>
-
     <div class="sidebar-link">
-        <a href="/history" target="_blank">Voir tout l'historique >></a>
+        <a href="/history" target="_blank">Voir tout >></a>
     </div>
 </div>
 
 <script>
-    const GRID_SIZE = 15;
-    const gridDiv = document.getElementById('grid');
-    const historyListDiv = document.getElementById('history-list');
+    // --- ÉLÉMENTS DOM ---
+    const gridEl = document.getElementById('grid');
+    const timerEl = document.getElementById('timer');
+    const msgEl = document.getElementById('status-msg');
+    const infoEl = document.getElementById('info');
+    const leaderboardEl = document.getElementById('leaderboard');
+    const historyListEl = document.getElementById('history-list');
 
-    // Génération grille principale HTML
-    for(let i=0; i<GRID_SIZE*GRID_SIZE; i++) {
-        let cell = document.createElement('div');
-        cell.className = 'cell';
-        cell.id = 'cell-' + Math.floor(i/GRID_SIZE) + '-' + (i%GRID_SIZE);
-        gridDiv.appendChild(cell);
+    // --- INITIALISATION GRILLE PRINCIPALE ---
+    function initGrid() {
+        gridEl.innerHTML = '';
+        for(let r=0; r<15; r++) {
+            for(let c=0; c<15; c++) {
+                const div = document.createElement('div');
+                div.className = 'cell';
+                div.id = `c-${r}-${c}`;
+                gridEl.appendChild(div);
+            }
+        }
     }
 
+    // --- FONCTION POUR CRÉER UNE MINI GRILLE (HISTORIQUE) ---
     function createMiniGrid(gridData) {
         let container = document.createElement('div');
         container.className = 'mini-grid';
@@ -75,7 +201,7 @@
             for(let c=0; c<15; c++) {
                 let d = document.createElement('div');
                 d.className = 'mini-cell';
-                // Si vide, blanc. Sinon la couleur.
+                // Si couleur définie (gagné), on l'utilise, sinon blanc
                 d.style.backgroundColor = gridData[r][c] || '#fff';
                 container.appendChild(d);
             }
@@ -83,59 +209,103 @@
         return container;
     }
 
-    // Boucle de mise à jour
-    setInterval(() => {
-        fetch('/api/state').then(r=>r.json()).then(data => {
-            // 1. Timer & Info
+    // --- BOUCLE PRINCIPALE DE MISE À JOUR ---
+    async function updateState() {
+        try {
+            const res = await fetch('/api/state');
+            const data = await res.json();
+
+            // 1. GESTION DU TIMER
             let m = Math.floor(data.timeLeft / 60);
-            let s = Math.floor(data.timeLeft % 60);
-            document.getElementById('timer').innerText = (m<10?'0':'')+m + ":" + (s<10?'0':'')+s;
-            document.getElementById('count').innerText = data.submissionCount;
+            let s = Math.floor(data.timeLeft % 60); // Cast entier pour sécurité
+            timerEl.innerText = (m<10?'0':'')+m + ":" + (s<10?'0':'')+s;
 
-            let st = document.getElementById('status');
-            if(data.isSolved) {
-                st.innerText = "GAGNÉ par " + (data.solvedBy || "Inconnu");
-                st.style.color = "#2ecc71";
-            } else {
-                st.innerText = "En cours...";
-                st.style.color = "#f1c40f";
-            }
+            // 2. GESTION DE LA GRILLE CENTRALE
+            const gridData = data.isSolved ? data.solvedGrid : data.targetGrid;
 
-            // 2. Grille Principale
-            for(let r=0; r<GRID_SIZE; r++) {
-                for(let c=0; c<GRID_SIZE; c++) {
-                    const cell = document.getElementById(`cell-${r}-${c}`);
-                    if(data.isSolved && data.solvedGrid) {
-                        cell.style.backgroundColor = data.solvedGrid[r][c];
+            for(let r=0; r<15; r++) {
+                for(let c=0; c<15; c++) {
+                    const cell = document.getElementById(`c-${r}-${c}`);
+                    const val = gridData[r][c];
+
+                    if (data.isSolved) {
+                        cell.style.backgroundColor = val; // Couleur réelle
+                        cell.classList.remove('filled');
                     } else {
-                        cell.style.backgroundColor = '';
-                        cell.className = data.targetGrid[r][c] === 1 ? 'cell target-1' : 'cell';
+                        cell.style.backgroundColor = ''; // Reset couleur
+                        if (val === 1) cell.classList.add('filled'); // Case noire modèle
+                        else cell.classList.remove('filled');
                     }
                 }
             }
 
-            // 3. Liste Historique (Sidebar)
-            // On vide et on remplit pour garder sync (optimisation possible mais pas nécessaire ici)
-            historyListDiv.innerHTML = "";
-            if(data.recentHistory) {
-                data.recentHistory.forEach(entry => {
-                    let entryDiv = document.createElement('div');
-                    entryDiv.className = 'hist-entry';
-
-                    // Mini grille
-                    entryDiv.appendChild(createMiniGrid(entry.grid));
-
-                    // Info texte
-                    let infoDiv = document.createElement('div');
-                    infoDiv.className = 'hist-info';
-                    infoDiv.innerHTML = `<div class="hist-name">${entry.name}</div>`;
-                    entryDiv.appendChild(infoDiv);
-
-                    historyListDiv.appendChild(entryDiv);
-                });
+            // 3. STATUT ET INFOS
+            if (data.isSolved) {
+                msgEl.innerText = "🎉 " + (data.solvedBy || "Inconnu") + " A GAGNÉ !";
+                msgEl.style.color = "#2ecc71";
+            } else {
+                msgEl.innerText = "Modèle à reproduire";
+                msgEl.style.color = "#ecf0f1";
             }
+            infoEl.innerText = `Dessin ${data.currentModel + 1} / ${data.totalModels || '?'} - Total victoires: ${data.submissionCount}`;
+
+            // 4. CLASSEMENT (GAUCHE)
+            renderLeaderboard(data.leaderboard);
+
+            // 5. HISTORIQUE (DROITE)
+            renderHistory(data.recentHistory);
+
+        } catch (e) {
+            console.error("Erreur polling", e);
+        }
+    }
+
+    // --- RENDU DU CLASSEMENT ---
+    function renderLeaderboard(list) {
+        leaderboardEl.innerHTML = "";
+        if (!list) return;
+
+        list.forEach((entry, index) => {
+            const li = document.createElement('li');
+            li.className = 'leaderboard-item';
+
+            let rankEmoji = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`;
+
+            li.innerHTML = `
+                <span>${rankEmoji} ${entry.name}</span>
+                <span class="score-badge">${entry.score} pts</span>
+            `;
+            leaderboardEl.appendChild(li);
         });
-    }, 1000);
+    }
+
+    // --- RENDU DE L'HISTORIQUE ---
+    function renderHistory(historyList) {
+        historyListEl.innerHTML = "";
+        if(!historyList) return;
+
+        historyList.forEach(entry => {
+            let entryDiv = document.createElement('div');
+            entryDiv.className = 'hist-entry';
+
+            // Ajout de la mini grille visuelle
+            entryDiv.appendChild(createMiniGrid(entry.grid));
+
+            // Infos texte
+            let infoDiv = document.createElement('div');
+            infoDiv.className = 'hist-info';
+            infoDiv.innerHTML = `<div class="hist-name">${entry.name}</div>`;
+            entryDiv.appendChild(infoDiv);
+
+            historyListEl.appendChild(entryDiv);
+        });
+    }
+
+    // Démarrage
+    initGrid();
+    setInterval(updateState, 1000);
+    updateState(); // Premier appel immédiat
 </script>
+
 </body>
 </html>

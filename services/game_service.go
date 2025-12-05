@@ -6,6 +6,7 @@ import (
 	"os"
 	"pixel-game/models"
 	"pixel-game/repository"
+	"sort" // <--- Important pour le tri
 	"sync"
 	"time"
 )
@@ -21,7 +22,7 @@ type GameService struct {
 	// Config
 	TimerDuration  time.Duration
 	Models         [][][]int
-	AutoSwitchMode bool // <--- NOUVEAU : État du mode Auto-Switch
+	AutoSwitchMode bool
 
 	// État courant
 	CurrentModelIdx int
@@ -79,7 +80,7 @@ func NewGameService(repo *repository.Database) *GameService {
 		Models:          modelsList,
 		CurrentModelIdx: 0,
 		NextSwitch:      time.Now().Add(1 * time.Minute),
-		AutoSwitchMode:  false, // Par défaut désactivé
+		AutoSwitchMode:  false,
 	}
 
 	go gs.gameLoop()
@@ -94,8 +95,6 @@ func (s *GameService) gameLoop() {
 	ticker := time.NewTicker(1 * time.Second)
 	for range ticker.C {
 		s.mu.Lock()
-		// On ne change automatiquement par le timer que si on n'est PAS en mode "Solved"
-		// Ou selon tes règles. Ici je laisse la logique timer classique.
 		if time.Now().After(s.NextSwitch) {
 			s.nextModelInternal()
 			fmt.Println("AUTO: Nouveau dessin (Timer écoulé).")
@@ -104,7 +103,7 @@ func (s *GameService) gameLoop() {
 	}
 }
 
-// Fonction interne pour passer au suivant (ne pas appeler sans Lock)
+// Fonction interne
 func (s *GameService) nextModelInternal() {
 	s.CurrentModelIdx = (s.CurrentModelIdx + 1) % len(s.Models)
 	s.IsSolved = false
@@ -127,6 +126,29 @@ func (s *GameService) GetState() models.GameStateResponse {
 	}
 
 	fullHistory := s.repo.GetFullHistory()
+
+	// --- LOGIQUE DE POINTS ---
+	// On parcourt tout l'historique pour calculer les scores
+	scoresMap := make(map[string]int)
+	for _, entry := range fullHistory {
+		scoresMap[entry.Name] += 10 // +10 points par dessin correct
+	}
+
+	// Transformation en liste pour le tri
+	leaderboard := make([]models.ScoreEntry, 0, len(scoresMap))
+	for name, score := range scoresMap {
+		leaderboard = append(leaderboard, models.ScoreEntry{
+			Name:  name,
+			Score: score,
+		})
+	}
+
+	// Tri du plus grand au plus petit score
+	sort.Slice(leaderboard, func(i, j int) bool {
+		return leaderboard[i].Score > leaderboard[j].Score
+	})
+	// --------------------------
+
 	lastIdx := len(fullHistory)
 	startIdx := lastIdx - 10
 	if startIdx < 0 {
@@ -148,7 +170,8 @@ func (s *GameService) GetState() models.GameStateResponse {
 		TotalModels:     len(s.Models),
 		SubmissionCount: s.SubmissionCount,
 		RecentHistory:   recent,
-		AutoSwitch:      s.AutoSwitchMode, // <--- NOUVEAU : Envoyer l'état au front
+		AutoSwitch:      s.AutoSwitchMode,
+		Leaderboard:     leaderboard, // <--- On renvoie le classement trié
 	}
 }
 
@@ -192,7 +215,6 @@ func (s *GameService) ProcessSubmission(req models.CheckRequest) (bool, string) 
 			}
 		}
 
-		// 1. Enregistrer la victoire dans l'historique
 		s.SolvedGrid = normalizedGrid
 		s.IsSolved = true
 		s.SolvedBy = req.Name
@@ -206,11 +228,9 @@ func (s *GameService) ProcessSubmission(req models.CheckRequest) (bool, string) 
 		}
 		s.repo.AddHistoryEntry(entry)
 
-		// 2. LOGIQUE AUTO-SWITCH
-		// Si le mode est activé, on passe immédiatement au suivant
 		if s.AutoSwitchMode {
-			s.nextModelInternal() // Passe au suivant et remet IsSolved à false
-			return true, "BRAVO " + req.Name + " ! (Passage automatique au suivant)"
+			s.nextModelInternal()
+			return true, "BRAVO " + req.Name + " ! (Passage automatique)"
 		}
 
 		return true, "BRAVO " + req.Name + " ! Validé !"
@@ -220,7 +240,7 @@ func (s *GameService) ProcessSubmission(req models.CheckRequest) (bool, string) 
 }
 
 // ---------------------
-// Méthodes de mutation d'état (utilisées par AdminService)
+// Méthodes de mutation
 // ---------------------
 
 func (s *GameService) SetTimerDuration(d time.Duration) {
@@ -230,7 +250,6 @@ func (s *GameService) SetTimerDuration(d time.Duration) {
 	s.NextSwitch = time.Now().Add(s.TimerDuration)
 }
 
-// NOUVEAU : Activer/Désactiver le mode Auto-Switch
 func (s *GameService) SetAutoSwitchMode(enabled bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

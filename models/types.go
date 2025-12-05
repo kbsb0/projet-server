@@ -10,6 +10,12 @@ type HistoryEntry struct {
 	ModelID   int        `json:"modelId"`
 }
 
+// NOUVEAU : Structure pour une ligne du classement
+type ScoreEntry struct {
+	Name  string `json:"name"`
+	Score int    `json:"score"`
+}
+
 // Requêtes HTTP
 type CheckRequest struct {
 	UserGrid [][]string `json:"grid"`
@@ -36,4 +42,7 @@ type GameStateResponse struct {
 	SubmissionCount int            `json:"submissionCount"`
 	RecentHistory   []HistoryEntry `json:"recentHistory"`
 	AutoSwitch      bool           `json:"autoSwitch"`
+
+	// NOUVEAU : La liste des scores envoyée au front
+	Leaderboard []ScoreEntry `json:"leaderboard"`
 }
