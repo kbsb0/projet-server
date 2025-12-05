@@ -3,6 +3,7 @@
 <head>
   <title>Administration Pixel War</title>
   <style>
+    /* ... (Ton CSS existant inchangé) ... */
     body {
       font-family: 'Segoe UI', sans-serif;
       margin: 0;
@@ -27,44 +28,58 @@
     }
 
     h2 { margin-top: 0; color: #3498db; font-size: 1.2em; }
-
     label { display: block; margin-bottom: 10px; }
 
-    input, select {
-      padding: 10px;
-      border-radius: 5px;
-      border: none;
-      width: 70%;
-      font-size: 1em;
+    /* Style pour le Toggle Switch */
+    .switch-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: bold;
     }
-
-    button {
-      padding: 10px 20px;
-      border: none;
-      border-radius: 5px;
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute;
       cursor: pointer;
-      font-weight: bold;
-      font-size: 1em;
-      transition: background 0.2s;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 34px;
     }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    input:checked + .slider { background-color: #2ecc71; }
+    input:checked + .slider:before { transform: translateX(26px); }
 
+    /* ... tes boutons ... */
+    input[type="number"], select {
+      padding: 10px; border-radius: 5px; border: none; width: 60%;
+    }
+    button {
+      padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;
+      font-weight: bold; transition: background 0.2s;
+    }
     .btn-green { background: #2ecc71; color: white; }
-    .btn-green:hover { background: #27ae60; }
-
     .btn-red { background: #e74c3c; color: white; }
-    .btn-red:hover { background: #c0392b; }
-
     .btn-yellow { background: #f1c40f; color: #2c3e50; }
-    .btn-yellow:hover { background: #f39c12; }
-
-    .info-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: bold; }
+    .info-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
     .status-val { color: #f1c40f; }
-
-    #response-msg {
-      height: 30px;
-      margin-bottom: 20px;
-      font-weight: bold;
-    }
+    #response-msg { height: 30px; margin-bottom: 20px; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -72,7 +87,6 @@
 <a href="/" style="color: #bdc3c7; margin-bottom: 20px;">← Retour Dashboard Public</a>
 
 <h1>PANEL ADMIN</h1>
-
 <div id="response-msg"></div>
 
 <!-- État Actuel -->
@@ -92,33 +106,40 @@
   </div>
 </div>
 
+<!-- NOUVEAU PANEL : Automatisation -->
+<div class="panel">
+  <h2>Modes de Jeu</h2>
+  <div class="switch-container">
+    <span>Auto-Switch (Dessin suivant si gagné)</span>
+    <label class="switch">
+      <input type="checkbox" id="auto-switch-input" onchange="toggleAutoSwitch()">
+      <span class="slider"></span>
+    </label>
+  </div>
+  <p style="font-size:0.8em; color:#bdc3c7; margin-top:5px;">Si activé, le jeu passera instantanément au dessin suivant dès que le dessin actuel est réussi.</p>
+</div>
+
 <!-- Contrôle du Timer -->
 <div class="panel">
   <h2>Configuration du Timer</h2>
   <label>Durée par round (secondes) :</label>
   <div style="display:flex; gap:10px;">
     <input type="number" id="timer-input" value="60">
-    <button class="btn-green" onclick="updateTimer()">Appliquer & Reset</button>
+    <button class="btn-green" onclick="updateTimer()">Appliquer</button>
   </div>
-  <p style="font-size:0.8em; color:#bdc3c7;">Note: Cela réinitialise le compte à rebours immédiatement.</p>
 </div>
 
 <!-- Contrôle du Modèle -->
 <div class="panel">
   <h2>Changer le Dessin</h2>
-
   <label>Forcer un modèle spécifique :</label>
   <div style="display:flex; gap:10px; margin-bottom: 15px;">
-    <select id="model-select">
-      <!-- Rempli par JS -->
-    </select>
+    <select id="model-select"></select>
     <button class="btn-yellow" onclick="setModel()">Changer</button>
   </div>
-
   <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 15px 0;">
-
   <label>Action Rapide :</label>
-  <button class="btn-red" style="width:100%" onclick="skipModel()">Passer au dessin suivant (SKIP) >></button>
+  <button class="btn-red" style="width:100%" onclick="skipModel()">Passer au suivant (SKIP) >></button>
 </div>
 
 <script>
@@ -130,20 +151,25 @@
     setTimeout(() => msgDiv.innerText = '', 3000);
   }
 
-  // 1. Charger l'état initial pour remplir le select
   function loadState() {
     fetch('/api/state').then(r=>r.json()).then(data => {
       document.getElementById('current-model-id').innerText = data.currentModel;
       document.getElementById('timer-val').innerText = Math.round(data.timeLeft) + "s";
       document.getElementById('solved-state').innerText = data.isSolved ? "GAGNÉ" : "EN COURS";
 
-      // Remplir le select si vide
+      // Mettre à jour le toggle switch selon l'état du serveur
+      // Assure-toi que ton API renvoie "autoSwitch" dans le JSON
+      if (data.autoSwitch !== undefined) {
+        document.getElementById('auto-switch-input').checked = data.autoSwitch;
+      }
+
+      // Remplir le select
       const select = document.getElementById('model-select');
       if(select.options.length === 0 && data.totalModels) {
         for(let i=0; i<data.totalModels; i++) {
           let opt = document.createElement('option');
           opt.value = i;
-          opt.innerText = "Modèle ID " + i + (i===0 ? " (Invader)" : i===1 ? " (Cœur)" : "");
+          opt.innerText = "Modèle ID " + i;
           select.appendChild(opt);
         }
         select.value = data.currentModel;
@@ -151,11 +177,22 @@
     });
   }
 
-  // Mise à jour auto toutes les secondes pour le monitoring
-  setInterval(loadState, 1000);
-  loadState();
-
-  // --- ACTIONS ---
+  // --- NOUVELLE FONCTION ---
+  function toggleAutoSwitch() {
+    const isChecked = document.getElementById('auto-switch-input').checked;
+    fetch('/admin/auto-switch', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ enabled: isChecked })
+    })
+            .then(r => r.json())
+            .then(d => showMsg(d.message, d.success))
+            .catch(err => {
+              showMsg("Erreur réseau", false);
+              // Revenir en arrière visuellement si erreur
+              document.getElementById('auto-switch-input').checked = !isChecked;
+            });
+  }
 
   function updateTimer() {
     const sec = parseInt(document.getElementById('timer-input').value);
@@ -163,9 +200,7 @@
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ duration: sec })
-    })
-            .then(r => r.json())
-            .then(d => showMsg(d.message, d.success));
+    }).then(r => r.json()).then(d => showMsg(d.message, d.success));
   }
 
   function setModel() {
@@ -174,26 +209,18 @@
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ modelIndex: idx })
-    })
-            .then(r => r.json())
-            .then(d => {
-              showMsg(d.message, d.success);
-              loadState(); // Refresh immédiat
-            });
+    }).then(r => r.json()).then(d => { showMsg(d.message, d.success); loadState(); });
   }
 
   function skipModel() {
     fetch('/admin/skip', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'}
-    })
-            .then(r => r.json())
-            .then(d => {
-              showMsg(d.message, d.success);
-              loadState();
-            });
+    }).then(r => r.json()).then(d => { showMsg(d.message, d.success); loadState(); });
   }
 
+  setInterval(loadState, 1000);
+  loadState();
 </script>
 </body>
 </html>
